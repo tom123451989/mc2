@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Mantra Repetition Counter</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    :root {
+      --bg: #fdfaf6;
+      --text: #333;
+      --primary: #ff9800;
+      --accent: #fff3e0;
+    }
+    body.dark {
+      --bg: #1e1e1e;
+      --text: #eee;
+      --primary: #90caf9;
+      --accent: #2c2c2c;
+    }
+    body.sattvic {
+      --bg: #fff7e6;
+      --text: #5c3c00;
+      --primary: #fbc02d;
+      --accent: #fffde7;
+    }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', sans-serif;
+      margin: 0;
+      padding: 20px;
+      text-align: center;
+      transition: background 0.3s, color 0.3s;
+    }
+    h1 { color: var(--primary); }
+    input, button, select {
+      font-size: 18px;
+      padding: 10px;
+      margin: 10px;
+      border-radius: 10px;
+      border: none;
+      outline: none;
+      transition: box-shadow 0.3s;
+    }
+    input { width: 80%; max-width: 400px; background: var(--accent); }
+    button { background: var(--primary); color: white; cursor: pointer; font-size: 30px; padding: 30px 50px; min-width: 250px; margin: 20px 0; }
+    #repeatBtn { font-size: 90px; padding: 90px 150px; }
+    button:hover { box-shadow: 0 0 10px rgba(0,0,0,0.2); }
+    .counter { font-size: 48px; margin: 20px 0; }
+    .controls { display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 12px; }
+    .filter-section { margin: 20px 0; }
+    .theme-toggle { margin-top: 20px; }
+    .mantra-entry { margin-top: 20px; }
+    img.god-img { max-height: 100px; margin-top: 10px; }
+    /* Custom number section */
+    .custom-number-section { margin-top: 20px; }
+    #userPerceivedDisplay { font-size: 48px; font-weight: bold; margin-top: 10px; }
+  </style>
+</head>
+<body>
+  <h1>Mantra Counter</h1>
+
+  <div class="mantra-entry">
+    <input type="text" id="mantraInput" placeholder="Enter Mantra">
+    <input type="file" id="godImageInput" accept="image/*">
+    <div><img id="godImage" class="god-img" alt="" /></div>
+    <button onclick="setMantra()">Set Mantra</button>
+    <button onclick="removeGodImage()">Remove God Picture</button>
+  </div>
+
+  <!-- Load Mantra from History -->
+  <div>
+    <label for="historySelect">Or Load From History:</label><br>
+    <select id="historySelect">
+      <option value="">-- Select Mantra --</option>
+    </select>
+    <button onclick="loadSelectedMantra()">Load Selected Mantra</button>
+  </div>
+
+  <div id="currentMantra" style="font-size: 24px; margin: 10px 0;"></div>
+  <div class="counter" id="countDisplay">0</div>
+  <!-- User-Perceived Count -->
+  <div id="userPerceivedDisplay"></div>
+
+  <div class="controls">
+    <button id="repeatBtn" onclick="repeatMantra()">Repeat</button>
+    <button onclick="resetCount()">Reset</button>
+    <button onclick="viewHistory()">History</button>
+
+    <!-- Repetitions per Press -->
+    <label>
+      Repetitions per Press:
+      <input type="text" id="perPressInput" value="1" style="width:120px;">
+      <small>(supports 1e6, 2.5e+10 etc.)</small>
+    </label>
+
+    <!-- Repetition Interval -->
+    <label>
+      Repetition Interval:
+      <select id="intervalSelect">
+        <option value="1000">1 sec</option>
+        <option value="500">0.5 sec</option>
+        <option value="100">0.1 sec</option>
+        <option value="50">0.05 sec</option>
+        <option value="25">0.025 sec</option>
+        <option value="13">0.0125 sec</option>
+        <option value="6">0.00625 sec</option>
+        <option value="3">0.003125 sec</option>
+        <option value="1.5625">0.0015625 sec</option>
+        <option value="0.78125">0.00078125 sec</option>
+        <option value="0.390625">0.000390625 sec</option>
+        <option value="0.1953125">0.0001953125 sec</option>
+      </select>
+    </label>
+
+    <!-- Auto Repeat Start/Stop -->
+    <button id="autoRepeatBtn" onclick="toggleAutoRepeat()">Start Auto Repeat</button>
+  </div>
+
+  <!-- Custom Number Input -->
+  <div class="custom-number-section">
+    <label>
+      Custom Number:
+      <input type="text" id="customNumberInput" placeholder="Enter numeric or alphanumeric">
+    </label>
+    <div id="customNumberDisplay"></div>
+  </div>
+
+  <div class="filter-section">
+    <input type="text" id="searchInput" placeholder="Search mantras...">
+    <br>
+    <label>From: <input type="date" id="fromDate"></label>
+    <label>To: <input type="date" id="toDate"></label>
+  </div>
+
+  <div class="theme-toggle">
+    <label>Theme:
+      <select id="themeSelect" onchange="setTheme(this.value)">
+        <option value="default">Light</option>
+        <option value="dark">Dark</option>
+        <option value="sattvic">Sattvic</option>
+      </select>
+    </label>
+  </div>
+
+  <script>
+    let count = 0;
+    let currentMantra = "";
+    let currentMantraImg = "";
+    let autoRepeatInterval = null;
+    let customNumber = "";
+
+    function setMantra() {
+      const input = document.getElementById("mantraInput").value.trim();
+      if (input) {
+        currentMantra = input;
+        count = 0;
+        document.getElementById("countDisplay").textContent = count;
+        updateUserPerceived();
+        document.getElementById("currentMantra").textContent = `Current: "${input}"`;
+        storeMantra(input);
+      }
+    }
+
+    function repeatMantra() {
+      if (!currentMantra) return;
+
+      const raw = document.getElementById("perPressInput").value.trim();
+      let reps = Number(raw);
+      if (isNaN(reps) || reps <= 0) reps = 1;
+
+      count += reps;
+      document.getElementById("countDisplay").textContent = count;
+      updateUserPerceived();
+
+      storeCount(currentMantra, count);
+      storeDailyCount(currentMantra, reps);
+      if (navigator.vibrate) navigator.vibrate(50);
+      localStorage.setItem("perPressValue", raw);
+    }
+
+    function resetCount() {
+      count = 0;
+      document.getElementById("countDisplay").textContent = count;
+      updateUserPerceived();
+    }
+
+    // Custom Number input
+    document.getElementById("customNumberInput").addEventListener("input", function () {
+      customNumber = this.value.trim();
+      localStorage.setItem("customNumberValue", customNumber);
+      document.getElementById("customNumberDisplay").textContent =
+        customNumber ? `Custom Number set to: ${customNumber}` : "";
+      updateUserPerceived();
+    });
+
+    function updateUserPerceived() {
+      const display = document.getElementById("userPerceivedDisplay");
+      if (!customNumber) {
+        display.textContent = "";
+        return;
+      }
+      const numVal = Number(customNumber);
+      if (!isNaN(numVal)) {
+        display.textContent = count * numVal;
+      } else {
+        display.textContent = `${count} × ${customNumber}`;
+      }
+    }
+
+    function toggleAutoRepeat() {
+      const button = document.getElementById("autoRepeatBtn");
+      const interval = parseInt(document.getElementById("intervalSelect").value);
+      if (autoRepeatInterval) {
+        clearInterval(autoRepeatInterval);
+        autoRepeatInterval = null;
+        button.textContent = "Start Auto Repeat";
+      } else {
+        autoRepeatInterval = setInterval(() => repeatMantra(), interval);
+        button.textContent = "Stop Auto Repeat";
+      }
+    }
+
+    function setTheme(theme) {
+      document.body.classList.remove("dark", "sattvic");
+      if (theme !== "default") document.body.classList.add(theme);
+      localStorage.setItem("theme", theme);
+    }
+
+    function loadTheme() {
+      const saved = localStorage.getItem("theme");
+      if (saved) {
+        document.getElementById("themeSelect").value = saved;
+        setTheme(saved);
+      }
+    }
+
+    function loadSavedRepetitionPerPress() {
+      const saved = localStorage.getItem("perPressValue");
+      if (saved) {
+        document.getElementById("perPressInput").value = saved;
+      }
+    }
+
+    function loadSavedCustomNumber() {
+      const saved = localStorage.getItem("customNumberValue");
+      if (saved) {
+        customNumber = saved;
+        document.getElementById("customNumberInput").value = saved;
+        document.getElementById("customNumberDisplay").textContent = `Custom Number set to: ${saved}`;
+        updateUserPerceived();
+      }
+    }
+
+    window.onload = function() {
+      loadTheme();
+      populateHistoryDropdown();
+      loadSavedRepetitionPerPress();
+      loadSavedCustomNumber();
+    };
+
+    // Existing functions like storeMantra, storeCount, storeDailyCount, populateHistoryDropdown etc.
+  </script>
+</body>
+</html>
