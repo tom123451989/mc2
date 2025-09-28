@@ -12,98 +12,43 @@
       --primary: #ff9800;
       --accent: #fff3e0;
     }
-    body.dark {
-      --bg: #1e1e1e;
-      --text: #eee;
-      --primary: #90caf9;
-      --accent: #2c2c2c;
-    }
-    body.sattvic {
-      --bg: #fff7e6;
-      --text: #5c3c00;
-      --primary: #fbc02d;
-      --accent: #fffde7;
-    }
-
+    body.dark { --bg: #1e1e1e; --text: #eee; --primary: #90caf9; --accent: #2c2c2c; }
+    body.sattvic { --bg: #fff7e6; --text: #5c3c00; --primary: #fbc02d; --accent: #fffde7; }
     body {
       background: var(--bg);
       color: var(--text);
       font-family: 'Segoe UI', sans-serif;
-      margin: 0;
-      padding: 20px;
+      margin: 0; padding: 20px;
       text-align: center;
       transition: background 0.3s, color 0.3s;
     }
-    h1 {
-      color: var(--primary);
-    }
+    h1 { color: var(--primary); }
     .mantra-item {
-      background: #fff5e6;
-      color: #5c3c00;
-      padding: 16px;
-      margin: 12px auto;
-      border-radius: 16px;
-      max-width: 90%;
-      width: 350px;
+      background: #fff5e6; color: #5c3c00;
+      padding: 16px; margin: 12px auto;
+      border-radius: 16px; max-width: 90%; width: 350px;
       box-shadow: 0 0 15px rgba(0,0,0,0.1);
-      font-size: 18px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      opacity: 0;
-      transform: translateY(20px);
+      font-size: 18px; display: flex; justify-content: space-between;
+      align-items: center; opacity: 0; transform: translateY(20px);
       animation: fadeInUp 0.5s forwards;
     }
-    @keyframes fadeInUp {
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
-    }
-    .mantra-item:hover {
-      background-color: #ffe0b3;
-    }
-    .mantra-text {
-      flex: 1;
-      cursor: pointer;
-      text-align: left;
-    }
+    @keyframes fadeInUp { to { opacity:1; transform: translateY(0); } }
+    .mantra-item:hover { background-color: #ffe0b3; }
+    .mantra-text { flex: 1; cursor: pointer; text-align: left; }
     .delete-btn {
-      background: crimson;
-      border: none;
-      color: white;
-      border-radius: 10px;
-      padding: 6px 10px;
-      cursor: pointer;
-      margin-left: 10px;
+      background: crimson; border: none; color: white;
+      border-radius: 10px; padding: 6px 10px; cursor: pointer; margin-left: 10px;
     }
-    #chartContainer {
-      margin-top: 40px;
-      padding: 20px;
-    }
-    canvas {
-      max-width: 600px;
-      width: 100%;
-    }
-    #chartTitle {
-      font-size: 20px;
-      margin-bottom: 20px;
-      color: #8b4513;
-    }
+    #chartContainer { margin-top: 40px; padding: 20px; }
+    canvas { max-width: 600px; width: 100%; }
+    #chartTitle { font-size: 20px; margin-bottom: 20px; color: #8b4513; }
     .control-btn {
       background: linear-gradient(to right, #ff7e5f, #feb47b);
-      border: none;
-      color: white;
-      font-size: 16px;
-      padding: 12px 24px;
-      border-radius: 10px;
-      cursor: pointer;
-      margin: 10px;
-      transition: transform 0.3s ease;
+      border: none; color: white; font-size: 16px;
+      padding: 12px 24px; border-radius: 10px;
+      cursor: pointer; margin: 10px; transition: transform 0.3s ease;
     }
-    .control-btn:hover {
-      transform: scale(1.05);
-    }
+    .control-btn:hover { transform: scale(1.05); }
   </style>
 </head>
 <body>
@@ -125,8 +70,16 @@
     const ctx = document.getElementById("mantraChart").getContext("2d");
 
     let history = JSON.parse(localStorage.getItem("mantraHistory") || "[]");
+    let customNumber = localStorage.getItem("customNumberValue") || "";
     let chart;
     let isCumulative = false;
+
+    function computePerceived(val) {
+      const numVal = Number(customNumber);
+      if (!customNumber) return null;
+      if (!isNaN(numVal)) return val * numVal;
+      return `${val} × ${customNumber}`;
+    }
 
     function showHistory() {
       historyList.innerHTML = "";
@@ -134,24 +87,18 @@
         historyList.innerHTML = "<p>No history available.</p>";
         return;
       }
-
       history.forEach((item, index) => {
         const div = document.createElement("div");
         div.className = "mantra-item";
-        
         const span = document.createElement("span");
         span.className = "mantra-text";
-        span.textContent = `"${item.text}" — Total: ${item.count}`;
+        let perceived = computePerceived(item.count);
+        span.textContent = `"${item.text}" — Total: ${item.count}` + (perceived ? ` (Perceived: ${perceived})` : "");
         span.onclick = () => showChart(item.text);
-        
         const delBtn = document.createElement("button");
         delBtn.className = "delete-btn";
         delBtn.textContent = "Delete";
-        delBtn.onclick = (e) => {
-          e.stopPropagation();
-          deleteMantra(index, item.text);
-        };
-        
+        delBtn.onclick = (e) => { e.stopPropagation(); deleteMantra(index, item.text); };
         div.appendChild(span);
         div.appendChild(delBtn);
         historyList.appendChild(div);
@@ -165,29 +112,39 @@
       let values = labels.map(date => data[date]);
 
       if (isCumulative) {
-        for (let i = 1; i < values.length; i++) {
-          values[i] += values[i - 1];
-        }
+        for (let i = 1; i < values.length; i++) values[i] += values[i - 1];
+      }
+
+      let datasets = [{
+        label: 'Actual Count',
+        data: values,
+        borderColor: '#ffa726',
+        backgroundColor: '#ffe0b2',
+        fill: true,
+        tension: 0.3,
+        pointRadius: 4,
+      }];
+
+      // Add perceived count dataset if customNumber is numeric
+      const numVal = Number(customNumber);
+      if (customNumber && !isNaN(numVal)) {
+        let perceivedValues = values.map(v => v * numVal);
+        datasets.push({
+          label: `Perceived Count (×${numVal})`,
+          data: perceivedValues,
+          borderColor: '#42a5f5',
+          backgroundColor: '#bbdefb',
+          fill: false,
+          tension: 0.3,
+          pointRadius: 4,
+        });
       }
 
       chartTitle.textContent = `"${mantra}" — ${isCumulative ? 'Cumulative' : 'Daily'} Count Chart`;
-
       if (chart) chart.destroy();
-
       chart = new Chart(ctx, {
         type: 'line',
-        data: {
-          labels: labels,
-          datasets: [{
-            label: 'Count',
-            data: values,
-            borderColor: '#ffa726',
-            backgroundColor: '#ffe0b2',
-            fill: true,
-            tension: 0.3,
-            pointRadius: 4,
-          }]
-        },
+        data: { labels: labels, datasets: datasets },
         options: {
           scales: {
             x: { title: { display: true, text: 'Date' } },
@@ -210,19 +167,21 @@
 
     function toggleCumulative() {
       isCumulative = !isCumulative;
-      chartTitle.textContent.includes('"') && showChart(chartTitle.textContent.split('"')[1]);
+      if (chartTitle.textContent.includes('"')) {
+        showChart(chartTitle.textContent.split('"')[1]);
+      }
     }
 
     function exportToCSV() {
-      let csv = "Mantra,Date,Count\n";
+      let csv = "Mantra,Date,Count,PerceivedCount\n";
       history.forEach(item => {
         const key = "mantraDailyCounts_" + item.text;
         const data = JSON.parse(localStorage.getItem(key) || "{}");
         Object.entries(data).forEach(([date, count]) => {
-          csv += `"${item.text}","${date}",${count}\n`;
+          let perceived = computePerceived(count);
+          csv += `"${item.text}","${date}",${count},"${perceived || ""}"\n`;
         });
       });
-
       const blob = new Blob([csv], { type: 'text/csv' });
       const link = document.createElement("a");
       link.href = URL.createObjectURL(blob);
@@ -230,11 +189,15 @@
       link.click();
     }
 
-    function goHome() {
-      window.location.href = "index.html";
+    function goHome() { window.location.href = "index.html"; }
+
+    function loadTheme() {
+      const saved = localStorage.getItem("theme");
+      if (saved) document.body.classList.add(saved);
     }
 
     showHistory();
+    loadTheme();
   </script>
 </body>
-</html>
+    </html>
